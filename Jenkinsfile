@@ -2,13 +2,12 @@ pipeline {
     agent any
 
     environment {
-        OPENSHIFT_SERVER = 'https://api.crc.testing:6443'  // replace with your OpenShift API
-        OPENSHIFT_TOKEN  = credentials('OPENSHIFT_TOKEN')
-        PROJECT          = 'jenkins-pipeline-project'
+        PROJECT = "jenkins-pipeline-project"
+        YAML_FILE = "html-demo.yaml"
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout Source Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/asurazoey-code/Pipeline-project.git'
             }
@@ -16,21 +15,20 @@ pipeline {
 
         stage('Deploy to OpenShift') {
             steps {
-                sh """
-                oc login ${OPENSHIFT_SERVER} --token=${OPENSHIFT_TOKEN} --insecure-skip-tls-verify=true
-                oc project ${PROJECT}
-                oc apply -f html-demo.yaml
-                oc rollout restart deployment/html-demo
-                """
+                sh "oc apply -f ${YAML_FILE} -n ${PROJECT}"
+            }
+        }
+
+        stage('Rollout Deployment') {
+            steps {
+                sh "oc rollout latest dc/html-demo -n ${PROJECT} || true"
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                sh """
-                oc get pods -n ${PROJECT}
-                oc get routes -n ${PROJECT}
-                """
+                sh "oc get pods -n ${PROJECT}"
+                sh "oc get routes -n ${PROJECT}"
             }
         }
     }
